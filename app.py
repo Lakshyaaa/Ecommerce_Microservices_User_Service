@@ -25,9 +25,21 @@ class UserLog(db.Model):
 def publish_message(queue, message):
     connection = pika.BlockingConnection(pika.ConnectionParameters('rabbitmq'))
     channel = connection.channel()
-    channel.queue_declare(queue=queue)
-    channel.basic_publish(exchange='', routing_key=queue, body=json.dumps(message))
+    
+    # Declare a durable queue
+    channel.queue_declare(queue=queue, durable=True)
+    
+    # Publish a persistent message
+    channel.basic_publish(
+        exchange='',
+        routing_key=queue,
+        body=json.dumps(message),
+        properties=pika.BasicProperties(
+            delivery_mode=2  # Make the message persistent
+        )
+    )
     connection.close()
+
 
 @app.route('/users', methods=['POST'])
 def create_user():
@@ -75,4 +87,4 @@ if __name__ == '__main__':
     # Wrap database table creation in a valid application context
     with app.app_context():
         db.create_all()
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
